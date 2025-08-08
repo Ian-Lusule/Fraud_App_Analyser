@@ -1,0 +1,9 @@
+streamlit
+google-play-scraper
+textblob
+pandas
+numpy
+matplotlib
+scikit-learn
+reportlab
+wordcloud
