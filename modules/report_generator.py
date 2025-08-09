@@ -10,14 +10,21 @@ from reportlab.lib.colors import green, red, yellow, black, grey, white, blue, H
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as ReportLabImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-import numpy as np # Import numpy
+from reportlab.lib.enums import TA_CENTER # Import TA_CENTER for text alignment
+import numpy as np
+from typing import Dict # Import Dict from typing
 
 # Import for consistent color logic
 from modules.sentiment_analyzer import get_score_color
 
 # --- Disclaimer Constants for Reports ---
-DISCLAIMER_TEXT = "The 'Fraud App Detector' provides an analysis based on publicly available app review sentiment and does not definitively label an app as fraudulent. This tool is for informational purposes only and should not be used as the sole basis for legal or financial decisions. Always conduct thorough due diligence."
-DISCLAIMER_LINK = "https://support.google.com/googleplay/android-developer/answer/138230" # Updated link
+DISCLAIMER_TEXT = "The 'Fraud App Detector' provides an analysis based solely on publicly available app review sentiment and does not involve deep technical analysis of the app's code or official investigative findings. This tool is for informational purposes only and should not be used as the sole basis for legal, financial, or investment decisions. Always conduct thorough due diligence."
+DISCLAIMER_LINK = "https://support.google.com/googleplay/android-developer/answer/138230"
+
+# New constants for risk messaging
+RISK_WARNING_SHORT = "Strong indicators of potential risk identified"
+RISK_ADVICE_UI = "Exercise caution and conduct further independent research before downloading, using, or trusting this app. Consider reporting the app directly to the Google Play Store or relevant authorities if you have concerns. Look for red flags such as unclear developer history, excessive permissions, or consistent scam reports elsewhere."
+
 
 def create_sentiment_trend_chart(trend_df: pd.DataFrame, for_pdf: bool = True) -> plt.Figure:
     """
@@ -72,7 +79,7 @@ def create_word_cloud_image(all_text: str, for_pdf: bool = True) -> plt.Figure:
     fig.tight_layout()
     return fig
 
-def create_comparison_barchart(app1_metrics: dict, app2_metrics: dict, app1_details: dict, app2_details: dict) -> io.BytesIO:
+def create_comparison_barchart(app1_metrics: Dict, app2_metrics: Dict, app1_details: Dict, app2_details: Dict) -> io.BytesIO:
     """
     Generates a grouped bar chart for app comparison and returns it as a BytesIO buffer.
     """
@@ -114,7 +121,7 @@ def create_comparison_barchart(app1_metrics: dict, app2_metrics: dict, app1_deta
 
 def generate_single_app_pdf_report(
     app_id: str,
-    app_details: dict,
+    app_details: Dict,
     filtered_df: pd.DataFrame,
     sentiment_counts: pd.Series,
     positive_pct: float,
@@ -139,7 +146,9 @@ def generate_single_app_pdf_report(
     styles.add(ParagraphStyle(name='TableText', parent=styles['Normal'], wordWrap='CJK', fontSize=9))
     styles.add(ParagraphStyle(name='DisclaimerStyle', parent=styles['Normal'], fontSize=9, textColor=HexColor('#e74c3c')))
     styles.add(ParagraphStyle(name='DisclaimerLinkStyle', parent=styles['Normal'], fontSize=9, textColor=HexColor('#85c1e9')))
-
+    styles.add(ParagraphStyle(name='RiskInfoStyle', parent=styles['Normal'], fontSize=10, textColor=HexColor('#555555'))) # New style for risk info
+    styles.add(ParagraphStyle(name='CenteredH2', parent=styles['h2'], alignment=TA_CENTER)) # New style for centered H2
+    styles.add(ParagraphStyle(name='CaptionText', parent=styles['Normal'], fontSize=8, textColor=HexColor('#555555')))
 
     story = []
 
@@ -151,7 +160,33 @@ def generate_single_app_pdf_report(
     story.append(Paragraph(f"App ID: {app_id if app_id else 'Unknown'}", styles['Normal']))
     story.append(Spacer(1, 0.2 * inch))
 
+    # App Details Table
+    story.append(Paragraph("<b>App Details</b>", styles['h2']))
+    app_details_data = [
+        ['Metric', 'Value'],
+        ['Developer', app_details.get('developer', 'N/A')],
+        ['Category', app_details.get('genre', 'N/A')],
+        ['Installs', app_details.get('installs', 'N/A')],
+        ['Released', app_details.get('released', 'N/A')],
+        ['Play Store Score', f"{app_details.get('score', 0.0):.2f}"],
+    ]
+    app_details_table = Table(app_details_data, colWidths=[2.5*inch, 4*inch])
+    app_details_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), white),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), white),
+        ('GRID', (0, 0), (-1, -1), 1, black),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE')
+    ]))
+    story.append(app_details_table)
+    story.append(Spacer(1, 0.2 * inch))
+
+
     # Review Summary (Metrics Table)
+    story.append(Paragraph("<b>Review Summary</b>", styles['h2']))
     summary_data_table = [
         ['Total Reviews', 'Positive', 'Neutral', 'Negative'],
         [
@@ -172,7 +207,6 @@ def generate_single_app_pdf_report(
         ('GRID', (0, 0), (-1, -1), 1, black),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE')
     ]))
-    story.append(Paragraph("<b>Review Summary</b>", styles['h2']))
     story.append(summary_table)
     story.append(Spacer(1, 0.2 * inch))
 
@@ -213,15 +247,17 @@ def generate_single_app_pdf_report(
     story.append(summary_findings_table)
     story.append(Spacer(1, 0.2 * inch))
 
-    # Fraud Alert
+    # Risk Alert (Updated messaging for PDF)
     if negative_pct > fraud_threshold:
-        story.append(Paragraph(f"<font color='red'><b>🚨 High number of negative reviews ({negative_pct:.1f}%). This app may be fraudulent.</b></font>", styles['h3']))
+        story.append(Paragraph(f"<font color='red'><b>🚨 {RISK_WARNING_SHORT} based on a high percentage of negative reviews ({negative_pct:.1f}%, exceeding your threshold of {fraud_threshold}%).</b></font>", styles['h3']))
+        story.append(Paragraph(f"<font color='black'>Our analysis is based solely on public user review sentiment and does not involve deep technical analysis of the app's code or official investigative findings.</font>", styles['RiskInfoStyle']))
+        story.append(Paragraph(f"<font color='black'>We strongly recommend conducting further independent research and due diligence before downloading, using, or trusting this app with personal information or financial data. If you have concerns, consider reporting the app directly to the Google Play Store or relevant authorities. Look for red flags such as unclear developer history, excessive permissions, or consistent scam reports elsewhere.</font>", styles['RiskInfoStyle']))
     else:
-        story.append(Paragraph("<b>✅ No significant fraud indicators found.</b>", styles['h3']))
+        story.append(Paragraph("<b>✅ No significant risk indicators found based on current analysis settings.</b>", styles['h3']))
     story.append(Spacer(1, 0.2 * inch))
 
     # Common Keywords in Reviews (Image)
-    story.append(Paragraph("<b>Common Keywords in Reviews</b>", styles['h2']))
+    story.append(Paragraph("<b>Common Keywords in Reviews</b>", styles['CenteredH2']))
     keyword_img_fig = create_word_cloud_image(all_text_for_wordcloud, for_pdf=True)
     keyword_img_buf = io.BytesIO()
     keyword_img_fig.savefig(keyword_img_buf, format="png", bbox_inches="tight", dpi=100)
@@ -234,7 +270,7 @@ def generate_single_app_pdf_report(
     story.append(Spacer(1, 0.2 * inch))
 
     # Sentiment Trend Over Time (Image)
-    story.append(Paragraph("<b>Sentiment Trend Over Time</b>", styles['h2']))
+    story.append(Paragraph("<b>Sentiment Trend Over Time</b>", styles['CenteredH2']))
     trend_img_fig = create_sentiment_trend_chart(trend_df, for_pdf=True)
     trend_img_buf = io.BytesIO()
     trend_img_fig.savefig(trend_img_buf, format="png", bbox_inches="tight", dpi=100)
@@ -275,8 +311,16 @@ def generate_single_app_pdf_report(
 
     # Model Training Report (Table)
     if not report_df.empty:
-        story.append(Paragraph("<b>Sentiment Classifier Performance</b>", styles['h2']))
-        model_report_data = [report_df.columns.tolist()] + report_df.reset_index().values.tolist()
+        story.append(Paragraph("<b>Sentiment Classifier Performance</b>", styles['CenteredH2']))
+        story.append(Paragraph(
+            "Metrics Description: <br/>- Precision: Proportion of correct positive predictions. <br/>- Recall: Proportion of actual positives correctly identified. <br/>- F1-score: Harmonic mean of precision and recall. <br/>- Support: Number of samples per class.",
+            styles['CaptionText']
+        ))
+        story.append(Spacer(1, 0.1 * inch))
+        # Modify model_report_data to include a new 'Class/Metric' column
+        report_df_with_index = report_df.reset_index()
+        report_df_with_index.rename(columns={'index': 'Class/Metric'}, inplace=True)
+        model_report_data = [report_df_with_index.columns.tolist()] + report_df_with_index.values.tolist()
 
         model_table = Table(model_report_data)
         model_table.setStyle(TableStyle([
@@ -306,10 +350,10 @@ def generate_single_app_pdf_report(
     return pdf_buffer
 
 def generate_comparison_pdf_report(
-    app1_details: dict,
-    app2_details: dict,
-    app1_metrics: dict,
-    app2_metrics: dict
+    app1_details: Dict,
+    app2_details: Dict,
+    app1_metrics: Dict,
+    app2_metrics: Dict
 ) -> io.BytesIO:
     """
     Generates a PDF report comparing two apps.
@@ -322,6 +366,7 @@ def generate_comparison_pdf_report(
     styles_comp = getSampleStyleSheet()
     styles_comp.add(ParagraphStyle(name='DisclaimerStyle', parent=styles_comp['Normal'], fontSize=9, textColor=HexColor('#e74c3c')))
     styles_comp.add(ParagraphStyle(name='DisclaimerLinkStyle', parent=styles_comp['Normal'], fontSize=9, textColor=HexColor('#85c1e9')))
+    styles_comp.add(ParagraphStyle(name='CenteredH2', parent=styles_comp['h2'], alignment=TA_CENTER))
 
     story_comp = []
 
@@ -352,7 +397,7 @@ def generate_comparison_pdf_report(
     story_comp.append(Spacer(1, 0.2 * inch))
 
     # Comparison Chart Image
-    story_comp.append(Paragraph("<b>Comparison Chart</b>", styles_comp['h2']))
+    story_comp.append(Paragraph("<b>Comparison Chart</b>", styles_comp['CenteredH2']))
     chart_buf = create_comparison_barchart(app1_metrics, app2_metrics, app1_details, app2_details)
     img_chart = ReportLabImage(chart_buf)
     img_chart.drawHeight = 3 * inch
@@ -392,3 +437,4 @@ def generate_comparison_pdf_report(
     doc_comp.build(story_comp)
     pdf_buffer_comp.seek(0)
     return pdf_buffer_comp
+
