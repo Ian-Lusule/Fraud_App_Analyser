@@ -1,6 +1,7 @@
 import pandas as pd
 from textblob import TextBlob
 from datetime import datetime
+from typing import List, Dict # Import List and Dict from typing
 
 # Define a list of words that should explicitly flag sentiment as negative
 NEGATIVE_KEYWORDS = [
@@ -36,15 +37,14 @@ def analyze_sentiment(text: str) -> float:
     # If no explicit negative keywords, proceed with TextBlob analysis
     return TextBlob(text).sentiment.polarity
 
-def analyze_sentiment_batch(texts: list) -> list[float]:
+def analyze_sentiment_batch(texts: List[str]) -> List[float]: # Changed list to List
     """
     Analyzes sentiment polarity for a batch of texts.
 
     Args:
-        texts (list): A list of text strings.
-
+        texts (List[str]): A list of text strings. # Changed list to List
     Returns:
-        list[float]: A list of sentiment polarities corresponding to the input texts.
+        List[float]: A list of sentiment polarities corresponding to the input texts. # Changed list to List
     """
     return [analyze_sentiment(text) for text in texts]
 
@@ -83,13 +83,13 @@ def process_reviews(df: pd.DataFrame, pos_threshold: float, neg_threshold: float
 
     return df
 
-def calculate_sentiment_metrics(filtered_df: pd.DataFrame, app_details: dict):
+def calculate_sentiment_metrics(filtered_df: pd.DataFrame, app_details: Dict) -> tuple: # Changed dict to Dict
     """
     Calculates various sentiment-related metrics for an app.
 
     Args:
         filtered_df (pd.DataFrame): DataFrame of filtered reviews with 'sentiment' column.
-        app_details (dict): Dictionary containing app details, including 'score'.
+        app_details (Dict): Dictionary containing app details, including 'score'. # Changed dict to Dict
 
     Returns:
         tuple: (sentiment_counts, positive_pct, negative_pct, neutral_pct, app_rating_score, playstore_score)
@@ -134,3 +134,4 @@ def get_score_color(score: float, scale: float = 100) -> str:
         return "#f39c12"  # Amber/Yellow
     else:
         return "#e74c3c"  # Red
+
