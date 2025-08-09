@@ -45,21 +45,18 @@ This project aims to provide an **informational tool** for users to perform init
 ## Project Structure
 ```
 .
-└── web
-    └── fad.lusule.com
-        └── public_html
-            └── streamlit_app
-                ├── fraud_app_analyzer3.py        # Main app file
-                ├── requirements.txt              # Dependencies
-                ├── venv                          # Virtual environment
-                ├── .streamlit                    # Streamlit config (secrets.toml)
-                └── modules
-                    ├── __init__.py
-                    ├── ui_components.py
-                    ├── data_fetcher.py
-                    ├── sentiment_analyzer.py
-                    ├── report_generator.py
-                    └── email_sender.py
+└── Fraud_App_Analyser
+    ├── fraud_app_analyzer3.py        # Main app file
+    ├── requirements.txt              # Dependencies
+    ├── venv                          # Virtual environment
+    ├── .streamlit                    # Streamlit config (secrets.toml)
+    └── modules
+        ├── __init__.py
+        ├── ui_components.py
+        ├── data_fetcher.py
+        ├── sentiment_analyzer.py
+        ├── report_generator.py
+        └── email_sender.py
 ```
 
 ---
