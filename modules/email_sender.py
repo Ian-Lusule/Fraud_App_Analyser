@@ -5,18 +5,25 @@ from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 from datetime import datetime
 import streamlit as st # Used for st.secrets
+from typing import Dict # Import Dict from typing
 
-# --- Disclaimer Constants for Email ---
-DISCLAIMER_TEXT_EMAIL = "The 'Fraud App Detector' provides an analysis based on publicly available app review sentiment and does not definitively label an app as fraudulent. This tool is for informational purposes only and should not be used as the sole basis for legal or financial decisions. Always conduct thorough due diligence."
-DISCLAIMER_LINK_EMAIL = "https://support.google.com/googleplay/android-developer/answer/138230" # Placeholder: User should replace with actual legal reference
+# Import disclaimer constants from report_generator for consistency
+from modules.report_generator import DISCLAIMER_TEXT, DISCLAIMER_LINK
+
+# New constants for email risk messaging (can be the same as report_generator or adapted)
+RISK_WARNING_EMAIL = "Strong indicators of potential risk identified based on a high percentage of negative reviews"
+RISK_ADVICE_EMAIL = """
+<p>Our analysis is based solely on public user review sentiment and does not involve deep technical analysis of the app's code or official investigative findings. The alert is triggered by your set threshold for negative reviews.</p>
+<p>We strongly recommend conducting further independent research and due diligence before downloading, using, or trusting this app with personal information or financial data. If you have concerns, consider reporting the app directly to the Google Play Store or relevant authorities. Look for red flags such as unclear developer history, excessive permissions, or consistent scam reports elsewhere.</p>
+"""
 
 def send_analysis_email(
     user_name: str,
     user_email: str,
-    app_details: dict,
+    app_details: Dict,
     app_id: str,
     filtered_df: pd.DataFrame,
-    sentiment_counts: dict,
+    sentiment_counts: Dict,
     positive_pct: float,
     negative_pct: float,
     neutral_pct: float,
@@ -36,10 +43,10 @@ def send_analysis_email(
     Args:
         user_name (str): The name of the recipient.
         user_email (str): The email address of the recipient.
-        app_details (dict): Dictionary containing app details.
+        app_details (Dict): Dictionary containing app details.
         app_id (str): The ID of the analyzed app.
         filtered_df (pd.DataFrame): DataFrame of filtered reviews.
-        sentiment_counts (dict): Counts of positive, neutral, negative reviews.
+        sentiment_counts (Dict): Counts of positive, neutral, negative reviews.
         positive_pct (float): Percentage of positive reviews.
         negative_pct (float): Percentage of negative reviews.
         neutral_pct (float): Percentage of neutral reviews.
@@ -58,7 +65,7 @@ def send_analysis_email(
     msg['To'] = user_email
     msg['Subject'] = f"📊 Fraud App Analysis Report - {app_details['title'] if app_details else 'Unknown App'} ({datetime.now().strftime('%Y-%m-%d %H:%M')})"
 
-    body = f"""
+    body_html = f"""
     <html>
         <body>
             <h3>Dear {user_name},</h3>
@@ -75,14 +82,14 @@ def send_analysis_email(
                 <li><strong>Play Store Score:</strong> <span style="color:#3498db;"><strong>{playstore_score:.1f}%</strong></span></li>
             </ul>
 
-            <p><strong>🚨 Fraud Alert:</strong><br>
-            {('A high number of negative reviews was detected. <strong style="color:#e74c3c;">This app may be fraudulent.</strong>' if negative_pct > fraud_threshold else 'No significant fraud indicators were found.')}</p>
+            <p><strong>🚨 Risk Alert:</strong><br>
+            {f'<strong style="color:#e74c3c;">{RISK_WARNING_EMAIL} ({negative_pct:.1f}% negative reviews, based on your configured threshold of {fraud_threshold}%).</strong><br>{RISK_ADVICE_EMAIL}' if negative_pct > fraud_threshold else 'No significant risk indicators were found based on current analysis settings.'}</p>
 
             <p>Please find attached the detailed CSV and PDF reports for your reference.</p>
 
             <p>---</p>
-            <p style="font-size:0.8em; color:#7f8c8d;"><b>Disclaimer:</b> {DISCLAIMER_TEXT_EMAIL}</p>
-            <p style="font-size:0.8em; color:#7f8c8d;">Reference: <a href="{DISCLAIMER_LINK_EMAIL}" target="_blank" style="color:#85c1e9; text-decoration:none;">{DISCLAIMER_LINK_EMAIL}</a></p>
+            <p style="font-size:0.8em; color:#7f8c8d;"><b>Disclaimer:</b> {DISCLAIMER_TEXT}</p>
+            <p style="font-size:0.8em; color:#7f8c8d;">Reference: <a href="{DISCLAIMER_LINK}" target="_blank" style="color:#85c1e9; text-decoration:none;">{DISCLAIMER_LINK}</a></p>
             <p>---</p>
 
             <p>Warm regards,<br>
@@ -90,7 +97,7 @@ def send_analysis_email(
         </body>
     </html>
     """
-    msg.attach(MIMEText(body, 'html'))
+    msg.attach(MIMEText(body_html, 'html'))
 
     # Attach CSV
     csv_part = MIMEApplication(csv_data, Name=f"{app_id}_review_analysis.csv")
