@@ -10,8 +10,9 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
+
 # Import from google_play_scraper directly for search functionality
-from google_play_scraper import search, Sort # Added 'search' and 'Sort'
+from google_play_scraper import search, Sort
 
 # Import modularized functions
 from modules.ui_components import (
@@ -36,9 +37,10 @@ from modules.report_generator import (
     create_comparison_barchart,
     generate_single_app_pdf_report,
     generate_comparison_pdf_report,
-    DISCLAIMER_TEXT, DISCLAIMER_LINK
+    DISCLAIMER_TEXT, DISCLAIMER_LINK,
+    RISK_WARNING_SHORT, RISK_ADVICE_UI
 )
-from modules.email_sender import send_analysis_email
+from modules.email_sender import RISK_WARNING_EMAIL, RISK_ADVICE_EMAIL, send_analysis_email
 
 # ---------------------------- UI Configuration ----------------------------
 set_page_config_and_styles()
@@ -68,7 +70,7 @@ col1, col2 = st.columns([3, 1])
 with col1:
     input_val = st.text_input("Enter App Name or Paste Play Store Link", placeholder="e.g., com.example.app or app name", key="search_input")
 with col2:
-    country = st.selectbox("Country", ["us", "gb", "in", "ke", "ca", "de", "fr", "jp", "ng", "au"], index=3, key="country_select")
+    country = st.selectbox("Country", ["us", "gb", "in", "ke","tz", "ca", "de", "fr", "jp", "ng", "au"], index=3, key="country_select")
 
 max_reviews = st.slider("Maximum Reviews to Analyze", 100, 10000, 500, 100, key="max_reviews_slider")
 
@@ -87,7 +89,7 @@ if input_val:
                 st.warning(f"Could not find app details for '{app_id_from_url}'. Please check the ID.")
         else:
             app_name = input_val
-            results = search(app_name, lang='en', country=country) # search is from google_play_scraper, needs to be imported
+            results = search(app_name, lang='en', country=country)
             if not results:
                 st.warning(f"No apps found for the search term '{app_name}'. Please try a different name or use a Play Store URL.")
             else:
@@ -138,7 +140,7 @@ with col1:
 with col2:
     neg_threshold = st.slider("Negative Sentiment Threshold", -1.0, 0.0, -0.1, 0.05, key="neg_threshold")
 with col3:
-    fraud_threshold = st.slider("Fraud Alert Threshold (% Negative)", 10, 50, 30, 5, key="fraud_threshold")
+    fraud_threshold = st.slider("Risk Alert Threshold (% Negative)", 10, 50, 30, 5, key="fraud_threshold")
 
 # ----------------------- Sentiment Analysis ------------------------
 if st.session_state.selected_app:
@@ -177,6 +179,9 @@ if st.session_state.selected_app:
                     <div>
                         <h4>{app_title}</h4>
                         <p><a href="{app_url}" target="_blank">View on Play Store</a></p>
+                        <p><b>Category:</b> {app_details.get('genre', 'N/A')}</p>
+                        <p><b>Installs:</b> {app_details.get('installs', 'N/A')}</p>
+                        <p><b>Released:</b> {app_details.get('released', 'N/A')}</p>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -262,9 +267,10 @@ if st.session_state.selected_app:
                 with cols[4]: circular_display("PlayStore Score", playstore_score)
 
                 if negative_pct > fraud_threshold:
-                    st.error(f"🚨 High number of negative reviews ({negative_pct:.1f}%). This app may be fraudulent.")
+                    # Updated warning message on UI
+                    st.error(f"🚨 {RISK_WARNING_SHORT} ({negative_pct:.1f}% negative reviews, based on your threshold of {fraud_threshold}%). {RISK_ADVICE_UI}")
                 else:
-                    st.success("✅ No significant fraud indicators found.")
+                    st.success("✅ No significant risk indicators found based on current analysis settings.")
 
                 # ----------------------- Model Training ------------------------
                 st.markdown("---")
@@ -378,6 +384,9 @@ if st.session_state.app1_id and st.session_state.app2_id:
                 <div class="details">
                     <b>App 1: {app1_details['title']}</b><br>
                     <span class="rating">Score: {app1_details.get('score', 0.0):.2f} ⭐</span>
+                    <p style="font-size:0.9em; margin: 2px 0;"><b>Category:</b> {app1_details.get('genre', 'N/A')}</p>
+                    <p style="font-size:0.9em; margin: 2px 0;"><b>Installs:</b> {app1_details.get('installs', 'N/A')}</p>
+                    <p style="font-size:0.9em; margin: 2px 0;"><b>Released:</b> {app1_details.get('released', 'N/A')}</p>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -396,6 +405,9 @@ if st.session_state.app1_id and st.session_state.app2_id:
                 <div class="details">
                     <b>App 2: {app2_details['title']}</b><br>
                     <span class="rating">Score: {app2_details.get('score', 0.0):.2f} ⭐</span>
+                    <p style="font-size:0.9em; margin: 2px 0;"><b>Category:</b> {app2_details.get('genre', 'N/A')}</p>
+                    <p style="font-size:0.9em; margin: 2px 0;"><b>Installs:</b> {app2_details.get('installs', 'N/A')}</p>
+                    <p style="font-size:0.9em; margin: 2px 0;"><b>Released:</b> {app2_details.get('released', 'N/A')}</p>
                 </div>
             </div>
             """, unsafe_allow_html=True)
