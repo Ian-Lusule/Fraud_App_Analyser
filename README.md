@@ -102,7 +102,7 @@ Main Streamlit app:
 ### 1️⃣ Clone the Repository
 ```bash
 git clone https://github.com/Ian-Lusule/Fraud_App_Analyser.git
-cd Fraud_App_Analyser/web/fad.lusule.com/public_html/streamlit_app
+cd Fraud_App_Analyser
 ```
 
 ### 2️⃣ Create a Virtual Environment
