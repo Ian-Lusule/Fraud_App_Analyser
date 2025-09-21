@@ -340,9 +340,9 @@ if st.session_state.selected_app:
                 user_email = st.text_input("Enter your email address to receive the report:", key="email_address")
 
                 # Using Streamlit secrets for sensitive information
-                sender_email = st.secrets.get("EMAIL_SENDER", "info@lusule.com")
+                sender_email = st.secrets.get("EMAIL_SENDER", "YOUR_EMAIL")
                 sender_password = st.secrets.get("EMAIL_PASSWORD", "YOUR_EMAIL_PASSWORD_HERE") # IMPORTANT: Replace with your actual app-specific password or retrieve from secrets
-                smtp_server = st.secrets.get("SMTP_SERVER", "mail.lusule.com")
+                smtp_server = st.secrets.get("SMTP_SERVER", "YOUR_EMAIL_SERVER")
                 smtp_port = st.secrets.get("SMTP_PORT", 587)
 
 
